@@ -14,6 +14,29 @@ export interface LogoutResponse {
   status: boolean;
 }
 
+export interface StartSearchResponse {
+  status: boolean;
+}
+
+export interface CheckMessagesResponse {
+  status: boolean;
+  error?: string;
+  randomFact?: string;
+  messages?: any[];
+  dialog?: any;
+  user?: any;
+  writer?: any;
+  dialogInformations?: any[];
+  website?: any;
+  templates?: any[];
+  favorites?: any[];
+  statistic?: any;
+  messagePrice?: number;
+  gifts?: any[];
+  minCharCount?: number;
+  logoutTime?: number;
+}
+
 export class TeddyChatApi {
   private client: AxiosInstance;
   private token: string | null = null;
@@ -89,6 +112,71 @@ export class TeddyChatApi {
       console.error("❌ Logout failed:", error);
       throw error;
     }
+  }
+
+  // Start searching for chats
+  async startSearch(): Promise<StartSearchResponse> {
+    if (!this.isLoggedIn || !this.token) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      const response = await this.client.get("/v1/user/active/set");
+      
+      if (response.status === 200 && response.data.status === true) {
+        console.log("✅ Started searching for chats!");
+        return response.data as StartSearchResponse;
+      } else {
+        throw new Error("Failed to start search");
+      }
+    } catch (error) {
+      console.error("❌ Failed to start search:", error);
+      throw error;
+    }
+  }
+
+  // Check for new messages
+  async checkMessages(): Promise<CheckMessagesResponse> {
+    if (!this.isLoggedIn || !this.token) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      const response = await this.client.get("/v1/user/check?canAsa=1");
+      return response.data as CheckMessagesResponse;
+    } catch (error) {
+      console.error("❌ Failed to check messages:", error);
+      throw error;
+    }
+  }
+
+  // Wait for messages with polling
+  async waitForMessages(intervalMs: number = 10000, maxAttempts: number = 100): Promise<CheckMessagesResponse> {
+    console.log("🔍 Waiting for messages...");
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const messagesResponse = await this.checkMessages();
+        
+        if (messagesResponse.status === true && messagesResponse.messages && messagesResponse.messages.length > 0) {
+          console.log("✅ Found messages!");
+          return messagesResponse;
+        }
+        
+        if (messagesResponse.status === false && messagesResponse.error === "Keine Nachricht gefunden") {
+          console.log(`⏳ No messages found (attempt ${attempt}/${maxAttempts}), waiting ${intervalMs/1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        } else {
+          console.log("❓ Unexpected response:", messagesResponse);
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      } catch (error) {
+        console.error(`❌ Error checking messages (attempt ${attempt}):`, error);
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+    
+    throw new Error(`No messages found after ${maxAttempts} attempts`);
   }
 
   // Helper method to check if user is logged in
