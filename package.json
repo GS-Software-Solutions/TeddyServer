@@ -1,0 +1,23 @@
+{
+    "name": "teddy-server",
+    "version": "1.0.0",
+    "description": "Teddy Chat API Server",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
+        "watch": "tsc -w",
+        "example": "ts-node src/example-usage.ts"
+    },
+    "dependencies": {
+        "axios": "^1.6.7",
+        "dayjs": "^1.11.10",
+        "dotenv": "^16.4.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.19",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.3.3"
+    }
+} 
