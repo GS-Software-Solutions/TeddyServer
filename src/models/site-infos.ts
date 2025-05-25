@@ -1,5 +1,4 @@
-
-export type PageType = "wifu";
+export type PageType = "wifu" | "teddy";
 
 export type Message = {
   text: string;

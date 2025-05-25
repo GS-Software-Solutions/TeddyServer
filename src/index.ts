@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import dayjs from 'dayjs';
 import { TeddyChatApi } from './api/TeddyChatApi';
+import { convertTeddyResponseToSiteInfos } from './utils/teddy-parser';
+import { SiteInfos } from './models/site-infos';
 
 // Load environment variables
 dotenv.config();
@@ -53,12 +55,14 @@ async function processAccountsWithStaggeredStart(accounts: Account[]) {
 }
 
 async function processAccount(account: Account) {
+  let api: TeddyChatApi | null = null;
+  
   while (true) {
     try {
       console.log(`🚀 Processing account: ${account.username}`);
       
       // Initialize API and login
-      const api = new TeddyChatApi();
+      api = new TeddyChatApi();
       await api.login({
         username: account.username,
         password: account.password
@@ -68,15 +72,41 @@ async function processAccount(account: Account) {
         account.isLoggedIn = true;
         console.log(`✅ Account ${account.username} logged in successfully`);
         
-        // Start searching for chats
-        const searchResponse = await api.startSearch();
-        if (searchResponse.status) {
-          console.log("🔍 Started searching for chats...");
-          
+        // First check if user is already active
+        let isActive = false;
+        try {
+          isActive = await api.isUserActive();
+          if (isActive) {
+            console.log(`ℹ️ Account ${account.username} is already active`);
+          }
+        } catch (activeCheckError) {
+          console.log(`⚠️ Could not check if account is active, continuing with search`);
+        }
+        
+        // Start searching for chats if not already active
+        let canContinue = true;
+        if (!isActive) {
+          try {
+            const searchResponse = await api.startSearch();
+            console.log("🔍 Start search response:", searchResponse);
+            if (!searchResponse.status) {
+              console.log("❌ Failed to start search, can't continue");
+              canContinue = false;
+            } else {
+              console.log("🔍 Started searching for chats...");
+            }
+          } catch (searchError) {
+            // Even if startSearch fails, we might still be able to check for messages
+            console.log("⚠️ Error during start search, but will try to check messages anyway");
+          }
+        }
+        
+        // If we can continue (active user or successful search start)
+        if (canContinue) {
           // Wait for messages
           try {
             const messagesResponse = await api.waitForMessages(10000, 100); // Check every 10 seconds, max 100 attempts
-            
+            console.log("🔍 Messages response:", messagesResponse);
             if (messagesResponse.status && messagesResponse.messages && messagesResponse.messages.length > 0) {
               console.log("📨 Found conversation with messages!");
               console.log(`Dialog ID: ${messagesResponse.dialog?.id}`);
@@ -102,42 +132,64 @@ async function processAccount(account: Account) {
                 lastMessage: messagesResponse.messages[messagesResponse.messages.length - 1]
               });
               
-              // TODO: Add your conversation processing logic here
-              // This is where you would:
-              // 1. Transform the conversation data
-              // 2. Call your AI/chat completion service
-              // 3. Send response messages
-              // 4. Update notes
+              // Process conversation into SiteInfos format
+              try {
+                const siteInfos: SiteInfos = convertTeddyResponseToSiteInfos(messagesResponse);
+                console.log("🔄 Converted to SiteInfos format");
+                console.log("🔄 SiteInfos:", siteInfos);
+                
+                // TODO: Add your conversation processing logic here
+                // This is where you would:
+                // 1. Use the siteInfos object for AI/chat completion
+                // 2. Send response messages
+                // 3. Update notes
+              } catch (parseError) {
+                console.error("❌ Error converting response to SiteInfos:", parseError);
+              }
               
               console.log("🎯 Conversation processing completed for this cycle");
+            } else {
+              console.log("⚠️ No messages found or invalid response format");
             }
           } catch (waitError) {
             console.log("⏰ No messages found within timeout period");
           }
         } else {
-          console.log("❌ Failed to start search");
+          console.log("❌ Cannot continue with message checking due to previous errors");
         }
         
-        // Logout
-        await api.logout();
-        account.isLoggedIn = false;
-        console.log(`👋 Account ${account.username} logged out`);
+        // Attempt to logout
+        try {
+          await api.logout();
+          account.isLoggedIn = false;
+          console.log(`👋 Account ${account.username} logged out`);
+        } catch (logoutError) {
+          console.error("❌ Error during logout:");
+          account.isLoggedIn = false;
+        }
         
-        // Break the loop for now (you can modify this based on your needs)
-        break;
+        // Wait before next cycle
+        console.log(`⏳ Waiting for 1 minute before next cycle for account ${account.username}`);
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+        continue;
       } else {
         console.log(`❌ Failed to login account ${account.username}`);
-        break;
+        // Wait before retrying
+        console.log(`⏳ Waiting for 1 minute before retrying account ${account.username}`);
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+        continue;
       }
     } catch (error) {
       logError(`Error processing account ${account.username}`, error);
       
-      // Attempt to logout in case of error
-      try {
-        const api = new TeddyChatApi();
-        await api.logout();
-      } catch (logoutError) {
-        console.log("Failed to logout after error");
+      // Already created api instance may have a valid token, try to logout with it
+      if (api && api.getLoginStatus()) {
+        try {
+          await api.logout();
+          console.log(`👋 Account ${account.username} logged out after error`);
+        } catch (logoutError) {
+          console.log("❌ Failed to logout after error");
+        }
       }
       
       account.isLoggedIn = false;

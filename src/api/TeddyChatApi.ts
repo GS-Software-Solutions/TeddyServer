@@ -122,6 +122,13 @@ export class TeddyChatApi {
 
     try {
       const response = await this.client.get("/v1/user/active/set");
+      console.log("🔍 Start search response:", response.data);
+      
+      // Handle the case where user is already active
+      if (response.data.status === false && response.data.error === "already active") {
+        console.log("ℹ️ User is already active, continuing with message checking");
+        return { status: true } as StartSearchResponse; // Return success to continue flow
+      }
       
       if (response.status === 200 && response.data.status === true) {
         console.log("✅ Started searching for chats!");
@@ -135,6 +142,21 @@ export class TeddyChatApi {
     }
   }
 
+  // Check if user is already active
+  async isUserActive(): Promise<boolean> {
+    if (!this.isLoggedIn || !this.token) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      const response = await this.client.get("/v1/user/active/check");
+      return response.data.status === true && response.data.active === true;
+    } catch (error) {
+      console.error("❌ Failed to check if user is active:", error);
+      return false;
+    }
+  }
+
   // Check for new messages
   async checkMessages(): Promise<CheckMessagesResponse> {
     if (!this.isLoggedIn || !this.token) {
@@ -142,7 +164,7 @@ export class TeddyChatApi {
     }
 
     try {
-      const response = await this.client.get("/v1/user/check?canAsa=1");
+      const response = await this.client.get("v1/message/check?canAsa=1");
       return response.data as CheckMessagesResponse;
     } catch (error) {
       console.error("❌ Failed to check messages:", error);
@@ -150,13 +172,14 @@ export class TeddyChatApi {
     }
   }
 
-  // Wait for messages with polling
+  // Wait for messages with polling, this will keep on trying for  number of attempts even if there is no message or error
   async waitForMessages(intervalMs: number = 10000, maxAttempts: number = 100): Promise<CheckMessagesResponse> {
     console.log("🔍 Waiting for messages...");
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const messagesResponse = await this.checkMessages();
+        console.log("🔍 Messages response:", messagesResponse);
         
         if (messagesResponse.status === true && messagesResponse.messages && messagesResponse.messages.length > 0) {
           console.log("✅ Found messages!");
@@ -187,47 +210,6 @@ export class TeddyChatApi {
   // Helper method to get current token
   getToken(): string | null {
     return this.token;
-  }
-
-  // Generic method to make authenticated API calls
-  async makeAuthenticatedRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', endpoint: string, data?: any) {
-    if (!this.isLoggedIn || !this.token) {
-      throw new Error("Not authenticated. Please login first.");
-    }
-
-    try {
-      const config: any = {
-        method: method.toLowerCase(),
-        url: endpoint,
-      };
-
-      if (data && (method === 'POST' || method === 'PUT')) {
-        config.data = data;
-      }
-
-      const response = await this.client.request(config);
-      return response.data;
-    } catch (error) {
-      console.error(`❌ API request failed (${method} ${endpoint}):`, error);
-      throw error;
-    }
-  }
-
-  // Convenience methods for different HTTP methods
-  async get(endpoint: string) {
-    return this.makeAuthenticatedRequest('GET', endpoint);
-  }
-
-  async post(endpoint: string, data?: any) {
-    return this.makeAuthenticatedRequest('POST', endpoint, data);
-  }
-
-  async put(endpoint: string, data?: any) {
-    return this.makeAuthenticatedRequest('PUT', endpoint, data);
-  }
-
-  async delete(endpoint: string) {
-    return this.makeAuthenticatedRequest('DELETE', endpoint);
   }
 }
 
