@@ -59,7 +59,7 @@ export class TeddyChatApi {
             return config
         })
     }
-
+    // Testing husky here
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
         try {
             const response = await this.client.post('/login', {
