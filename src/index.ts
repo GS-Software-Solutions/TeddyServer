@@ -69,6 +69,15 @@ async function processAccount(account: Account) {
                 const gsApi = new GSApi(siteInfos)
                 const gsResponse = await gsApi.chatCompletion()
                 console.log(`✅ GS response:`, gsResponse) // Implement message sending and notes updating here
+                if (gsResponse.resText.length > 0) {
+                    if (gsResponse.alert === 'CUSTOMER WANTS PHOTO') {
+                        throw new Error('CUSTOMER WANTS PHOTO')
+                    } else {
+                        const messageResponse = await api.sendMessage(gsResponse.resText)
+                        console.log(`✅ Message sent:`, messageResponse)
+                    }
+                }
+                // Notes updation to be done here after gettig to know the format for notes received
             }
 
             await safeLogout(api, account.username)

@@ -37,10 +37,16 @@ export interface CheckMessagesResponse {
     logoutTime?: number
 }
 
+export interface SendMessageResponse {
+    status: boolean
+    messageId?: number
+}
+
 export class TeddyChatApi {
     private client: AxiosInstance
     private token: string | null = null
     private isLoggedIn: boolean = false
+    private messageId: number | null = null
 
     constructor() {
         this.client = axios.create({
@@ -179,6 +185,7 @@ export class TeddyChatApi {
                     messagesResponse.messages &&
                     messagesResponse.messages.length > 0
                 ) {
+                    this.messageId = messagesResponse.messages[0].id
                     return messagesResponse
                 }
 
@@ -203,6 +210,14 @@ export class TeddyChatApi {
         throw new Error(`No messages found after ${maxAttempts} attempts`)
     }
 
+    async sendMessage(message: string): Promise<SendMessageResponse> {
+        if (!this.messageId) {
+            throw new Error('No message ID found. Please check messages first.')
+        }
+
+        const response = await this.client.post(`/v1/message/send/${this.messageId}`, { message })
+        return response.data as SendMessageResponse
+    }
     // Helper method to check if user is logged in
     getLoginStatus(): boolean {
         return this.isLoggedIn
