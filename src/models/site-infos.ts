@@ -99,8 +99,8 @@ export interface SiteInfos {
     customerInfo: UserInfo;
     moderatorId?: string;
     customerId?: string;
-    moderatorNotes?: string;
-    customerNotes?: string;
+    moderatorNotes?: UserNotes;
+    customerNotes?: UserNotes;
     moderatorUpdates?: Update[];
     customerUpdates?: Update[];
     sessionStart?: Date;

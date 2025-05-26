@@ -181,8 +181,8 @@ export function convertTeddyMessagesToMessages(
   writerUserId: number
 ): Message[] {
   return messages.map(msg => {
-    const isSent = msg.from_id === currentUserId;
-    const isReceived = msg.from_id === writerUserId;
+    const isSent = msg.from_id === writerUserId;
+    const isReceived = msg.from_id === currentUserId;
     
     let type: "sent" | "received" | "system" = "system";
     if (isSent) {
@@ -231,8 +231,8 @@ export function convertTeddyResponseToSiteInfos(response: CheckMessagesResponse)
     metaData: {
       moderatorInfo,
       customerInfo,
-      moderatorNotes: moderatorNotes.rawText,
-      customerNotes: customerNotes.rawText,
+      moderatorNotes: moderatorNotes,
+      customerNotes: customerNotes,
       sessionStart: new Date(response.dialog.created_at),
       minLength: response.minCharCount,
       customerProfilePic,
