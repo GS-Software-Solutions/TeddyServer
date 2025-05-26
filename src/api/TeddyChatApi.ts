@@ -109,7 +109,6 @@ export class TeddyChatApi {
         throw new Error("Logout failed - Invalid response");
       }
     } catch (error) {
-      console.error("❌ Logout failed:", error);
       throw error;
     }
   }
@@ -174,15 +173,12 @@ export class TeddyChatApi {
 
   // Wait for messages with polling, this will keep on trying for  number of attempts even if there is no message or error
   async waitForMessages(intervalMs: number = 10000, maxAttempts: number = 100): Promise<CheckMessagesResponse> {
-    console.log("🔍 Waiting for messages...");
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const messagesResponse = await this.checkMessages();
-        console.log("🔍 Messages response:", messagesResponse);
         
         if (messagesResponse.status === true && messagesResponse.messages && messagesResponse.messages.length > 0) {
-          console.log("✅ Found messages!");
           return messagesResponse;
         }
         
