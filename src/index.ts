@@ -65,7 +65,7 @@ async function processAccount(account: Account) {
         console.log(`🎯 Messages processed successfully for ${account.username}:`, siteInfos);
         const gsApi = new GSApi(siteInfos);
         const gsResponse = await gsApi.chatCompletion();
-        console.log(`✅ GS response:`, gsResponse);
+        console.log(`✅ GS response:`, gsResponse); // Implement message sending and notes updating here 
       }
 
       await safeLogout(api, account.username);

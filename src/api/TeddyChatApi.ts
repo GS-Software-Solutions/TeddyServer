@@ -88,17 +88,8 @@ export class TeddyChatApi {
     }
 
     try {
-      // Note: The logout endpoint is on a different domain according to the curl command
-      const logoutClient = axios.create({
-        baseURL: "https://teddy-sys-mod.de/api/v1",
-        headers: {
-          "Authorization": `Bearer ${this.token}`,
-          "Accept": "application/json",
-        },
-        timeout: 15000,
-      });
-
-      const response = await logoutClient.get("/user/active/remove");
+      // Use the same client and domain as all other requests
+      const response = await this.client.get("/v1/user/active/remove");
 
       if (response.status === 200 && response.data.status === true) {
         this.token = null;
@@ -106,9 +97,10 @@ export class TeddyChatApi {
         console.log("✅ Logout successful!");
         return response.data as LogoutResponse;
       } else {
-        throw new Error("Logout failed - Invalid response");
+        throw new Error(`Logout failed - Status: ${response.status}, Response: ${JSON.stringify(response.data)}`);
       }
     } catch (error) {
+      console.error("❌ Logout failed:", error);
       throw error;
     }
   }
